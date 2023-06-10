@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Renderowanie drzew w siatce</title>
+  <title>System LOD</title>
   <style>
     body { margin: 0; }
   </style>
@@ -83,51 +83,10 @@
     scene.add(ambientLight);
 
 
-    // Obsługa poruszania się kamery za pomocą myszki
-    const mouse = new THREE.Vector2();
-    const raycaster = new THREE.Raycaster();
-    let isDragging = false;
-    let previousMousePosition = {
-      x: 0,
-      y: 0
-    };
-
-    function handleMouseDown(event) {
-      isDragging = true;
-    }
-
-    function handleMouseUp(event) {
-      isDragging = false;
-    }
-
-    function handleMouseMove(event) {
-      const { clientX, clientY } = event;
-      const { x, y } = renderer.domElement.getBoundingClientRect();
-
-      mouse.x = ((clientX - x) / renderer.domElement.clientWidth) * 2 - 1;
-      mouse.y = -((clientY - y) / renderer.domElement.clientHeight) * 2 + 1;
-
-      if (isDragging) {
-        const deltaMove = {
-          x: clientX - previousMousePosition.x,
-          y: clientY - previousMousePosition.y
-        };
-
-        const deltaRotationQuaternion = new THREE.Quaternion().setFromEuler(
-          new THREE.Euler(toRadians(deltaMove.y * 1), toRadians(deltaMove.x * 1), 0, 'XYZ')
-        );
-
-        camera.quaternion.multiplyQuaternions(deltaRotationQuaternion, camera.quaternion);
-      }
-
-      previousMousePosition = {
-        x: clientX,
-        y: clientY
-      };
-    }
-
+   
     // Obsługa poruszania się kamery za pomocą klawiszy WSAD
     const cameraSpeed = 0.05;
+    const rotationSpeed = 0.005;
 
     function handleKeyDown(event) {
       switch (event.code) {
@@ -143,6 +102,24 @@
         case 'KeyD':
           camera.translateX(cameraSpeed);
           break;
+        case 'KeyQ':
+          camera.translateY(cameraSpeed);
+          break;
+        case 'KeyE':
+          camera.translateY(-cameraSpeed);
+          break;
+        case 'ArrowUp':
+          camera.rotation.x += rotationSpeed;
+          break;
+        case 'ArrowDown':
+          camera.rotation.x -= rotationSpeed;
+          break;
+        case 'ArrowLeft':
+          camera.rotation.y += rotationSpeed;
+          break;
+        case 'ArrowRight':
+          camera.rotation.y -= rotationSpeed;
+          break;
       }
     }
 
@@ -151,9 +128,6 @@
     }
 
     // Dodawanie nasłuchiwaczy zdarzeń myszy i klawiatury
-    renderer.domElement.addEventListener('mousedown', handleMouseDown);
-    renderer.domElement.addEventListener('mouseup', handleMouseUp);
-    renderer.domElement.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
 
