@@ -11,60 +11,57 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
   <script src="https://cdn.rawgit.com/mrdoob/three.js/r110/examples/js/loaders/OBJLoader.js"></script>
   <script>
-    // Inicjalizacja sceny
     const scene = new THREE.Scene();
 
-    // Tworzenie kamery
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 5;
+    camera.position.z = 9;
+    camera.position.x = 2;
 
-    // Inicjalizacja silnika renderującego
     const renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // Wczytanie trzech modeli drzewa w różnych jakościach
     const models = [
       { url: 'models/treehigh.obj', distanceThreshold: 4 },
       { url: 'models/treemid.obj', distanceThreshold: 7 },
       { url: 'models/treelow.obj', distanceThreshold: 12 }
     ];
 
-    // Tworzenie siatki 3x3 drzew
-    const gridSize = 1;
-    const spacing = 4;
+    // Tworzenie trzech obiektów drzewa
+    function addTree(x, z, model) {
+    const tree = new THREE.Object3D();
+    tree.userData.type = 'tree';
+    scene.add(tree);
+    tree.position.set(x, 0, z);
+    loadModel(model, tree);
+  }
 
-    for (let i = 0; i < gridSize; i++) {
-      for (let j = 0; j < gridSize; j++) {
-        const tree = new THREE.Object3D();
-        tree.userData.type = 'tree';
-        scene.add(tree);
+    const model = models[0];
 
-        // Wczytanie losowego modelu drzewa
-        const model = models[0];
-        loadModel(model, tree);
+    addTree(4,0,model);
+    addTree(4,4,model);
+    addTree(0,4,model);
+    addTree(0,0,model);
 
-        // Ustawienie pozycji drzewa w siatce
-        tree.position.x = (i - Math.floor(gridSize / 2)) * spacing;
-        tree.position.z = (j - Math.floor(gridSize / 2)) * spacing;
-
-        // Dodanie pola currentModelUrl do obiektu drzewa
-        tree.currentModelUrl = model.url;
-      }
-    }
-
-    let currentModel = null;
+    // Tworzenie podłogi
+    const floorGeometry = new THREE.PlaneGeometry(20, 20);
+    const floorMaterial = new THREE.MeshBasicMaterial({ color: 0x808080, side: THREE.DoubleSide });
+    const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+    floor.rotateX(Math.PI / 2);
+    floor.position.y = -1;
+    scene.add(floor);
 
     function loadModel(model, parent) {
       const loader = new THREE.OBJLoader();
       loader.load(
         model.url,
         function (object) {
+          const currentModel = parent.userData.currentModel;
           if (currentModel) {
             parent.remove(currentModel);
           }
-          currentModel = object;
-          parent.add(currentModel);
+          parent.userData.currentModel = object;
+          parent.add(object);
         },
         undefined,
         function (error) {
@@ -73,20 +70,19 @@
       );
     }
 
-    // Dodawanie oświetlenia punktowego
+    // Oświetlenie
     const light = new THREE.PointLight(0xffffff, 1, 100);
     light.position.set(0, 0, 5);
     scene.add(light);
 
-    // Tworzenie rozproszonego światła
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); // Kolor: biały, Intensywność: 0.5
     scene.add(ambientLight);
 
 
    
-    // Obsługa poruszania się kamery za pomocą klawiszy WSAD
+    //Poruszanie się kamerą
     const cameraSpeed = 0.05;
-    const rotationSpeed = 0.005;
+    const rotationSpeed = 0.02;
 
     function handleKeyDown(event) {
       switch (event.code) {
@@ -122,60 +118,47 @@
           break;
       }
     }
-
-    function handleKeyUp(event) {
-      // Dodaj obsługę innych klawiszy, jeśli jest to potrzebne
-    }
-
-    // Dodawanie nasłuchiwaczy zdarzeń myszy i klawiatury
+    
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
 
-    // Sprawdzanie odległości od kamery i wybieranie odpowiedniego modelu
+    //Zmienianie modelu drzew
     function updateModelQuality() {
-  const distanceThresholds = models.map((model) => model.distanceThreshold);
+      const distanceThresholds = models.map((model) => model.distanceThreshold);
 
-  scene.traverse((object) => {
-    if (object.isObject3D && object.userData.type === 'tree') {
-      const distance = camera.position.distanceTo(object.position);
-      let closestDistance = Infinity;
-      let closestModelIndex = -1;
+      scene.traverse((object) => {
+        if (object.userData.type === 'tree') {
+          const distance = camera.position.distanceTo(object.position);
+          let closestDistance = Infinity;
+          let closestModelIndex = -1;
 
-      for (let i = 0; i < distanceThresholds.length; i++) {
-        const distanceThreshold = distanceThresholds[i];
-        if (distance < distanceThreshold && distanceThreshold < closestDistance) {
-          closestDistance = distanceThreshold;
-          closestModelIndex = i;
+          for (let i = 0; i < distanceThresholds.length; i++) {
+            const distanceThreshold = distanceThresholds[i];
+            if (distance < distanceThreshold && distanceThreshold < closestDistance) {
+              closestDistance = distanceThreshold;
+              closestModelIndex = i;
+            }
+          }
+
+          if (closestModelIndex !== -1) {
+            const closestModel = models[closestModelIndex];
+
+          if (closestModel.url !== object.userData.currentModelUrl) {
+            loadModel(closestModel, object);
+            object.userData.currentModelUrl = closestModel.url;
+          }
+
+          }
         }
-      }
-
-      if (closestModelIndex !== -1) {
-        const closestModel = models[closestModelIndex];
-
-        if (closestModel.url !== object.currentModelUrl) {
-          loadModel(closestModel, object);
-          object.currentModelUrl = closestModel.url;
-        }
-      }
+      });
     }
-  });
-}
 
 
-
-    // Aktualizacja kamery i renderowanie w każdej klatce
     function animate() {
       requestAnimationFrame(animate);
       updateModelQuality();
       renderer.render(scene, camera);
     }
 
-    // Funkcja pomocnicza do przeliczania stopni na radiany
-    function toRadians(degrees) {
-      return degrees * (Math.PI / 180);
-    }
-
-    // Rozpoczęcie animacji
     animate();
   </script>
 </body>
